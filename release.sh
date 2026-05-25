@@ -60,14 +60,31 @@ fi
 HASH_FILE="target/release/typst.exe.sha256"
 echo "$SHA  typst.exe" > "$HASH_FILE"
 
-# ── 创建 release 并上传 ──
+# ── 创建 release（通过 API，不生成 source archive） ──
 echo "Creating GitHub release ..."
-gh release create "$TAG" \
+if gh release view "$TAG" --repo "$REPO" &>/dev/null; then
+  echo "Release $TAG already exists, uploading assets ..."
+else
+  gh api repos/{owner}/{repo}/releases \
+    --method POST \
+    -f tag_name="$TAG" \
+    -f name="$TITLE" \
+    -f body="$NOTES" \
+    -F draft=false \
+    -F prerelease=true
+fi
+
+# ── 上传 assets ──
+echo "Uploading typst.exe ..."
+gh release upload "$TAG" \
   --repo "$REPO" \
-  --title "$TITLE" \
-  --notes "$NOTES" \
-  --exclude-source \
-  "$BINARY#typst.exe" \
+  --clobber \
+  "$BINARY#typst.exe"
+
+echo "Uploading typst.exe.sha256 ..."
+gh release upload "$TAG" \
+  --repo "$REPO" \
+  --clobber \
   "$HASH_FILE#typst.exe.sha256"
 
 echo ""
